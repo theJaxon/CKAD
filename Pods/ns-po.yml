@@ -1,0 +1,12 @@
+apiVersion: v1 
+kind: Pod 
+metadata:
+  name: busy-po-ns1
+  namespace: ns1
+  labels:
+    app: busybox-po
+spec:
+  containers:
+    - name: busybox 
+      image: busybox 
+      command: ['sh', '-c', 'echo Hello k8s! && sleep 3600']

@@ -43,7 +43,7 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 <summary>4- Core concepts <b>13%</b></summary>
 <p>
 
-1. API primitives
+1. API primitives `Objects`
 2. Basic pod creation and configuration
 
 </p>
@@ -80,3 +80,37 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 
 ---
 
+#### :gem: Common commands:
+
+```bash
+kubectl cluster-info
+
+# List kubernetes objects 
+kubectl api-resources 
+
+kubectl get <object>
+
+# Troubleshooting commands
+kubectl describe <object>
+kubectl logs <object>
+
+# Updating existing object definition
+kubectl apply -f file_name.yml
+kubectl edit <object> <name>
+kubectl exec <pod-name> -- command-here # ls /etc/conf for example
+
+
+```
+
+---
+#### Namespaces:
+```bash
+# Create ns
+kubectl create ns <name>
+```
+
+---
+
+#### ConfigMaps:
+- ConfigMaps can be included either as a `env` variable or as a `volume`
+- When they're included as a volume, for each key there is a corresponding file that contains the value that is created on the mountPath

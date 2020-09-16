@@ -1,0 +1,18 @@
+apiVersion: v1 
+kind: Pod 
+metadata:
+  name: test-cm-po-vol
+spec:
+  containers:
+  - name: busybox
+    image: busybox 
+    command: ['sh']
+    args: ['-c', 'echo my name is $(cat /etc/config/NAME) && sleep 3600']
+    volumeMounts:
+      - name: config-vol
+        mountPath: /etc/config
+
+  volumes:
+  - name: config-vol 
+    configMap:
+      name: test-cm 
