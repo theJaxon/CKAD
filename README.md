@@ -114,3 +114,10 @@ kubectl create ns <name>
 #### ConfigMaps:
 - ConfigMaps can be included either as a `env` variable or as a `volume`
 - When they're included as a volume, for each key there is a corresponding file that contains the value that is created on the mountPath
+
+---
+
+#### SecurityContext:
+* Define privilege and access control settings for pods and containers
+* They're part of the Pod specification
+* Without a securityContext, the user running the commands in the container inside the pod will be `root` by default

@@ -1,0 +1,17 @@
+apiVersion: v1 
+kind: Pod 
+metadata:
+  name: no-sec-con
+spec:
+  containers:
+  - name: busybox 
+    image: busybox 
+    command: ['sh', '-c', 'cat /msg/msg.txt && sleep 7200']
+  volumeMounts:
+  - name: msg-vol 
+    mountPath: /msg 
+
+  volumes:
+  - name: msg-vol
+    hostPath: 
+      path: /etc/msg
