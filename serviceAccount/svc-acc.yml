@@ -1,0 +1,10 @@
+apiVersion: v1 
+kind: Pod 
+metadata:
+  name: svc-acc
+spec:
+  serviceAccountName: jaxon
+  containers:
+  - name: busybox
+    image: busybox
+    command: ['sh', '-c', 'echo HOLA K8s && sleep 2200']

@@ -1,0 +1,16 @@
+apiVersion: v1 
+kind: Pod 
+metadata:
+  name: req-lim-po
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    command: ['sh', '-c', 'echo Hello K8s !!']
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m" # 250 Milli CPU (a millit CPU is 1/1000 of a CPU core) aka 1/4 of a CPU core
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
