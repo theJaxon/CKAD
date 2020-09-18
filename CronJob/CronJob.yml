@@ -1,0 +1,19 @@
+apiVersion: batch/v1beta1
+kind: CronJob 
+metadata:
+  name: cron-job
+spec:
+  schedule: '*/1 * * * *'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: cron-job-po
+            image: busybox
+            args:
+            - /bin/sh
+            - -c
+            - date; echo Hello from kubernetes cluster
+          

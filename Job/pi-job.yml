@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job 
+metadata:
+  name: pi-job 
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: Never 
+      containers:
+      - name: pi-con
+        image: perl 
+        command: ['perl', '-Mbingnum=bpi', '-wle', 'print bpi(2000)']

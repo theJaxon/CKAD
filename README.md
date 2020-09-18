@@ -96,6 +96,9 @@ kubectl logs <object>
 # When having more than 1 container in a pod use the -c flag 
 kubectl logs <pod> -c <container>
 
+# Get All pods in the cluster
+kubectl get po -A
+
 # Updating existing object definition
 kubectl apply -f file_name.yml
 kubectl edit <object> <name>
@@ -195,7 +198,7 @@ kubectl get --raw /apis/metrics.k8s.io/
 in the deployment section
 ---
 
-### Monitoring apps:
+#### Monitoring apps:
 
 ```bash
 kubectl top po
@@ -205,3 +208,58 @@ kubectl top po <name>
 
 kubectl top nodes
 ```
+
+#### Labels & Selectors:
+```bash
+# Get pods based on specific label
+kubectl get po -l key=value
+
+# Get pods based on multiple labels 
+kubectl get po -l key=value,key=value
+
+# Get pods that doesn't match the labels 
+kubectl get po -l key!=value
+
+# Set based selectors 
+kubectl get po -l 'key in (val1,val2,val3)'
+
+# Watch rollout and changes in the deployment 
+kubectl get po -w
+
+```
+---
+
+#### Annotations [Metadata]:
+* Useful when dealing with external tools for automation where we need attach additional info to our pods
+* Just add them in `metadata` section using `annotations:` then add key value pairs
+
+---
+
+#### Rolling updates and rollbacks:
+* Deployments create RS by defaults
+* Rolling updates provide a way to update a deployment to a new container version by gradually updating replicas thus no downtime is introduced
+
+```bash
+kubectl set image deployment/<deployment-name> <container name>=<image name> --record # --record flag recrods info about the update so that it can be rolled back later
+
+kubectl rollout status deployment/<name>
+
+# Check deployment versions 
+kubectl rollout history deployment/<name>
+
+# Get more info about a specific revision
+kubectl rollout history deployment/<name> --revision=<number>
+
+# Rollback
+kubectl rollout undo deployment/<name>
+
+# Rollback to a specific revision
+kubectl rollout undo deployment/<name> --to-revision=<number>
+
+```
+
+---
+
+#### Jobs and cronJobs:
+* Jobs are like pods but they run for a specific job and when it's finished the container stops running
+* CronJobs are your regular linux cron jobs, they run regularly according to the specified schedule
