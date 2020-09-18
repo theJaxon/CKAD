@@ -175,3 +175,33 @@ Changes the output of the main container (for example the output is changed to f
 - Liveness probe indicates whether the container is running properly and decides whether the cluster will automatically stop or restart the container
   - It just does health checks
 - Readiness probe indicates whether the container is ready to receive requests 
+
+---
+
+##### Metrics server installation:
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.7/components.yaml
+
+# Verify server installation
+kubectl get --raw /apis/metrics.k8s.io/
+
+```
+
+* This didn't work, the [soultion](https://github.com/kubernetes-sigs/metrics-server/issues/300) was to add 
+```
+- --kubelet-insecure-tls=true
+- --kubelet-preferred-address-types=InternalIP
+```
+in the deployment section
+---
+
+### Monitoring apps:
+
+```bash
+kubectl top po
+
+# Narrow down to a specific pod
+kubectl top po <name>
+
+kubectl top nodes
+```
