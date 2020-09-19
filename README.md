@@ -80,6 +80,18 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 
 ---
 
+### Tips:
+1. Enable auto completion
+```bash
+source <(kubectl completion bash)
+
+# To do it persistently store it in .bashrc
+echo "source <(kubectl completion bash)" >> ~/.bashrc
+```
+
+---
+
+
 #### :gem: Common commands:
 
 ```bash
@@ -263,3 +275,66 @@ kubectl rollout undo deployment/<name> --to-revision=<number>
 #### Jobs and cronJobs:
 * Jobs are like pods but they run for a specific job and when it's finished the container stops running
 * CronJobs are your regular linux cron jobs, they run regularly according to the specified schedule
+
+---
+
+#### Services:
+* Provide network access to a set of pods 
+* Service types are:
+  * **ClusterIP** : Service is exposed within the cluster using Internal IP address, it's also accessible using cluster DNS 
+  * **NodePort** : Service is exposed externally via a port which listens on each node in the cluster
+  * LoadBalancer: For cloud providers
+
+```bash
+# Get IP address of each replica
+kubectl get ep <service-name>
+```
+
+---
+
+#### NetworkPolicies:
+* Allows the control of what traffic come in and leave the pod
+
+`policyTypes` sets whether the policy governs ingress, egress or both 
+
+```yml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy 
+metadata:
+  name: nw-policy 
+spec:
+  podSelector: # 1
+    matchLabels:
+      key: value 
+  
+  policyTypes: # 2
+  - Ingress
+  - Egress 
+  
+  ingress: 
+  - from: 
+    ports:
+
+```
+
+```bash
+kubectl get networkpolicies
+
+kubectl describe networkpolicy <name>
+```
+
+---
+
+#### Volumes:
+* Provide permanent storage for the container
+* `emptyDir` volume type allows the creation of a shared storage between the containers
+
+```bash
+# List containers inside pod in case there are more than 1 container
+kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
+```
+
+---
+
+#### PVs and PVCs:
+* Persistent data storage 

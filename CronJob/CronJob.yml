@@ -16,4 +16,3 @@ spec:
             - /bin/sh
             - -c
             - date; echo Hello from kubernetes cluster
-          

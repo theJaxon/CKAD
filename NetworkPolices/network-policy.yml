@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1 
+kind: NetworkPolicy 
+metadata:
+  name: network-policy 
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx-server 
+  policyTypes:
+  - Ingress 
+  
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx-server
+    ports:
+    - protocol: TCP 
+      port: 6379 
