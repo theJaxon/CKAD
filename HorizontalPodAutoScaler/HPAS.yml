@@ -1,0 +1,15 @@
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: redis-hpas 
+  labels:
+    app: redis 
+spec:
+  maxReplicas: 5
+  minReplicas: 1
+  targetCPUUtilizationPercentage: 70
+  scaleTargetRef: 
+    apiVersion: apps/v1 
+    kind: Deployment
+    name: redis-deploy 
+  
