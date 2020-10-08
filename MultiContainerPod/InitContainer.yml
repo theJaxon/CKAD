@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod 
+metadata:
+  name: init-container
+spec:
+  # The main container will never start since the init container never finishes
+  initContainers:
+  - name: httpd
+    image: httpd 
+  containers:
+  - name: alpine
+    image: alpine 

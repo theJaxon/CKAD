@@ -122,8 +122,8 @@ kubectl auth can-i <verb> <object> # ex: kubectl auth can-i get namsepace
 
 kubectl auth can-i <verb> <object> as <username>
 
-# Get a shell into the container running https://kubernetes.io/docs/tasks/debug-application-cluster/get-shell-running-container/ 
-kubectl exec --stdin --tty <name> -- /bin/bash
+# Get a shell into the container running
+kubectl exec --it <name> -- /bin/bash
 
 # Proxy 
 kubectl proxy --port=<number> &
@@ -163,6 +163,9 @@ d # End section
 ```bash
 # Get all pod names 
 kubectl get pods -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+
+# Get container names inside each pod
+kubectl get po -A -o=jsonpath='{ range .items[*]}{"\n"}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{", "}{end}{end}'
 
 ```
 
@@ -205,6 +208,7 @@ kubectl exec --tty --stdin <pod-name> -c <container-name> -- /bin/bash # Getting
 ---
 
 #### Containers:
+
 * Use Namespaces, the linux kernel allows for strict isolation between different system components using NSs, isolation is as follows:
   * File (a container is like a `chroot` environment and only contents of specific directories can be viewed)
   * IPCs
@@ -218,6 +222,18 @@ kubectl exec --tty --stdin <pod-name> -c <container-name> -- /bin/bash # Getting
 #### Pods:
 - Each pod has a unique IP address
 - Containers within this pod share the same IP address
+- Use port forwarding to access pods via localhost (For testing purposes only)
+* Usually SVC or Ingress is used for that purpose
+```bash
+kubectl port-forward pod/<name> <host-port>:<container-port>
+# Verify that kubectl is listening 
+ss -tunap | grep <host-port>
+curl localhost:<host-port>
+```
+
+* pod.spec.container
+  * .resources 
+  * .securityContext
 
 ---
 
@@ -236,9 +252,17 @@ kubectl create ns <name>
 ---
 
 #### SecurityContext:
-* Define privilege and access control settings for pods and containers
+* Define privilege and access control settings for **pods** and **containers**
 * They're part of the Pod specification
-* Without a securityContext, the user running the commands in the container inside the pod will be `root` by default
+* Running as privileged or unprivileged user
+  * Without a securityContext, the user running the commands in the container inside the pod will be `root` by default
+* SELinux where security labels can be applied OR AppArmor
+* Discretionary access control which is about permissions used to access an object
+* `AllowPrivilegeEscalation` which controls if a process can gain more privileges than its parent process
+
+```bash
+kubectl explain pod.spec.securityContext
+```
 
 ---
 
@@ -246,7 +270,7 @@ kubectl create ns <name>
 - Define container's memory and cpu requirements using `requests` and `limits`
 - `resource request` is the amount of resources necessary to run a container (The node must have enough available resources for the requests)
 - `resource limits` is the maximum value for the resource usage of a container
-- CPU core usage can be specified using `m` which means `milli CPU`
+- CPU core usage can be specified using `m` which means `milli CPU` or `milli core`
   - **250m** means a **quarter** of a cpu core 
   - **500m** means **half** of a cpu core and so on
 
@@ -290,6 +314,10 @@ use cases - commonly used with DBs
 Changes the output of the main container (for example the output is changed to fit some sort of a monitoring tool that will receive it like prometheus or logstash)
 
 ---
+
+#### Init Containers:
+* An init container is an additional container in a pod that completes a task before the main container is started
+* The main container gets started only after the init container has finished its job
 
 #### Probes:
 - Allows customizing how K8s determines container status
@@ -435,13 +463,39 @@ In `rollingUpdate` strategy we can specify
 ---
 
 #### Jobs and cronJobs:
-* Jobs are like pods but they run for a specific job and when it's finished the container stops running
-* CronJobs are your regular linux cron jobs, they run regularly according to the specified schedule
-
+* `Jobs` are like pods but they run for a specific job and when it's finished the container stops running
+* Useful for tasks like backup, calculation, batch processing
+* A pod start by a job must have its `restartPolicy` set either to
+  * OnFailure (re-run the failing container on the same pod)
+  * Never (re-run the failing container in a new pod)
+* 3 Different job types can be started which is specified by **completions** (Number of pods that will be created) and **Parallelism** parameters
+  * Non parallel jobs: 1 Pod is started unless the pod fails
+    * Completions = 1
+    * Parallelism = 1
+  * Parallel jobs with a fixed completion count where the jobs is complete after running as many times as specified by `jobs.spec.completions`
+    * Completions = n
+    * Parallelism = m
+  * Parallel jobs with a work queue where multiple jobs are started but all is finished when one job of those that were started is finished
+    * Completions = 1
+    * Parallelism = n
+* `CronJobs` are your regular linux cron jobs, they run regularly according to the specified schedule
+* When running a CronJob a Job will be scheduled which will start a new pod
 ```bash
+# get Jobs 
+kubectl get jobs
+
 # get cron jobs
 kubectl get cj 
 ```
+
+* job.Spec
+  * .completions
+  * .template 
+
+* cronjob.spec
+  * .schedule
+  * .jobTemplate
+    * .spec.template.spec.restartPolicy
 
 ---
 
