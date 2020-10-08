@@ -4,6 +4,7 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 ---
 
 ### Objectives:
+* The hashtag provided means use the keyword to search in the documentation at [k8s website](https://kubernetes.io/docs/home/)
 
 <details>
 <summary>1- Pod Design <b>20%</b></summary>
@@ -31,7 +32,7 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 <summary>3- Observability <b>18%</b></summary>
 <p>
 
-1. Probes (Liveness, Readiness)
+1. Probes (Liveness, Readiness) [#Liveness](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 2. Container Logging
 3. Application Monitoring
 4. Debugging
@@ -81,6 +82,7 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 ---
 
 ### Tips:
+
 1. Enable auto completion
 ```bash
 source <(kubectl completion bash)
@@ -90,6 +92,8 @@ echo "source <(kubectl completion bash)" >> ~/.bashrc
 
 # alias kubectl to k (from https://github.com/krzko/awesome-cka)
 alias k='kubectl'
+
+k completion -h # In case you forgot the source command listed above
 ```
 
 2. [Delete](https://stackoverflow.com/a/33510531) all pods in a NS
@@ -99,9 +103,9 @@ kubectl delete --all po --namespace=<name>
 
 3. kubectl 
 ```bash
-kubectl <verb> --help
+kubectl <verb> --help | less
 
-kubectl | more
+kubectl | less
 
 kubectl api-resources
 
@@ -112,13 +116,48 @@ kubectl get po -A -L <label>
 # Sorting 
 # Sort by the creation time 
 kubectl  get po -n kube-system --sort-by='{.metadata.creationTimestamp}'
+
+# Check Authorization
+kubectl auth can-i <verb> <object> # ex: kubectl auth can-i get namsepace
+
+kubectl auth can-i <verb> <object> as <username>
+
+# Get a shell into the container running https://kubernetes.io/docs/tasks/debug-application-cluster/get-shell-running-container/ 
+kubectl exec --stdin --tty <name> -- /bin/bash
+
+# Proxy 
+kubectl proxy --port=<number> &
+# Display API Groups after using the proxy command 
+curl http://localhost:<number>
+
+# Narrow down a selection from the shown API Groups 
+curl http://localhost:<number>/version
+
+# Get list of pods in a specific NS
+curl http://localhost:<number>/api/v1/namespaces/<Namespace>/pods
+
 ``` 
 
 4. Watch command (2 ways)
 * `kubectl get` command supports the `-w` option.
 * watch -n 1 `kubectl get po` specifies a watch command that gets updated each 1 second  
 
+5. [Delete a block](https://vi.stackexchange.com/questions/1915/how-do-i-delete-a-large-block-of-text-without-counting-the-lines) from the YAML file 
+```bash
+# Approach 1 
+m then a # Start section 
+d then ' then a # End section
+```
+```bash
+# Approach 2 Visual mode 
+shift and v (capital V) # Start section 
+d # End section
+```
 ---
+
+### :file_folder: Important dirs:
+* Kubectl 
+  * ~/.kube/config # kubectl config view
 
 ### JSONPATH commands:
 ```bash
@@ -140,10 +179,11 @@ kubectl get <object>
 
 # Troubleshooting commands
 kubectl describe <object> # Used to also view resource requests and limits
+
 kubectl logs <object>
 
 # Follow the logs using -f 
-kubectl logs <object> -f
+kubectl logs <pod-name> -f
 
 # When having more than 1 container in a pod use the -c flag 
 kubectl logs <pod> -c <container>
@@ -155,9 +195,12 @@ kubectl get po -A
 kubectl apply -f file_name.yml
 kubectl edit <object> <name>
 kubectl exec <pod-name> -- command-here # ls /etc/conf for example
-
+kubectl exec --tty --stdin <pod-name> -c <container-name> -- /bin/bash # Getting into multi-containter pod
 
 ```
+
+* `kubectl describe` command gets the current state of the object from `etcd` 
+* `kubectl logs` always go to a pod so no need to mention the type
 
 ---
 
