@@ -153,6 +153,36 @@ d then ' then a # End section
 shift and v (capital V) # Start section 
 d # End section
 ```
+
+6. Use the provided examples to quickly create yaml files
+```bash
+kubectl create <object> --help | less
+kubectl create <object> <name> --image=<image-name> --dry-run=client -o yaml > file.yml
+
+kubectl create cj --help | less # This shows the following example
+# kubectl create cronjob my-job --image=busybox --schedule="*/1 * * * *" 
+
+# Dry run and redirect output as yaml
+kubectl create cronjob my-job --image=busybox --schedule="*/1 * * * *" --dry-run=client -o yaml > cj.yml
+
+# Same procedure with deployment
+kubectl create deployment --help | less
+# kubectl create deployment my-dep --image=busybox
+kubectl create deployment my-dep --image=busybox --dry-run=client -o yaml > deployment.yml
+```
+
+7. Use kubectl explain to find the `apiVersion`
+```bash
+kubectl explain pod 
+
+# similar but 2 step approach
+
+kubectl api-resources | less # /<object>
+
+kubectl api-versions | less # /<term from previous command>
+```
+
+
 ---
 
 ### :file_folder: Important dirs:
@@ -222,7 +252,7 @@ kubectl exec --tty --stdin <pod-name> -c <container-name> -- /bin/bash # Getting
 #### Pods:
 - Each pod has a unique IP address
 - Containers within this pod share the same IP address
-- Use port forwarding to access pods via localhost (For testing purposes only)
+- Use `port forwarding` to access pods via localhost (For testing purposes only)
 * Usually SVC or Ingress is used for that purpose
 ```bash
 kubectl port-forward pod/<name> <host-port>:<container-port>
@@ -388,7 +418,16 @@ kubectl get po -w
 ```bash
 # Scale deployment using kubectl 
 kubectl scale deployment <name> --replicas=<number>
+
+# Can also be done via kubectl edit 
+kubectl edit deployment <name>
 ```
+
+* deployment.spec
+  * .replicas
+  * .strategy 
+  * .selector 
+  * .template
 
 ---
 
