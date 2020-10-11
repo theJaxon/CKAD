@@ -169,6 +169,12 @@ kubectl create cronjob my-job --image=busybox --schedule="*/1 * * * *" --dry-run
 kubectl create deployment --help | less
 # kubectl create deployment my-dep --image=busybox
 kubectl create deployment my-dep --image=busybox --dry-run=client -o yaml > deployment.yml
+
+# Services are created with expose command
+kubectl expose <object> --port=<number> --targetPort=<number>
+
+# Pods
+kubectl run <name> --image=<name>
 ```
 
 7. Use kubectl explain to find the `apiVersion`
@@ -181,8 +187,6 @@ kubectl api-resources | less # /<object>
 
 kubectl api-versions | less # /<term from previous command>
 ```
-
-
 ---
 
 ### :file_folder: Important dirs:
@@ -252,8 +256,8 @@ kubectl exec --tty --stdin <pod-name> -c <container-name> -- /bin/bash # Getting
 #### Pods:
 - Each pod has a unique IP address
 - Containers within this pod share the same IP address
-- Use `port forwarding` to access pods via localhost (For testing purposes only)
-* Usually SVC or Ingress is used for that purpose
+- Use `port forwarding` to access pods via **localhost** (For testing purposes only)
+* Usually SVC or Ingress (DNS) is used for that purpose
 ```bash
 kubectl port-forward pod/<name> <host-port>:<container-port>
 # Verify that kubectl is listening 
@@ -385,7 +389,7 @@ kubectl top po <name>
 kubectl top nodes
 ```
 
-#### Labels & Selectors:
+#### Labels, Selectors and Annotations:
 ```bash
 # Get pods based on specific label
 kubectl get po -l key=value
@@ -402,7 +406,15 @@ kubectl get po -l 'key in (val1,val2,val3)'
 # Watch rollout and changes in the deployment 
 kubectl get po -w
 
+# To label an object use the label command
+kubectl label <object> <name> key=value
+
+# Remove label
+kubectl label po <name> key-
 ```
+
+* The `selector` option is used to search for items that have a specific label set `kubectl get po --selector='key=value'`
+* Annotations provide metadata ex: licences, maintainer etc
 ---
 
 #### Annotations [Metadata]:
@@ -412,8 +424,12 @@ kubectl get po -w
 ---
 
 #### Deployments:
+
 * Represent multiple replicas of a Pod
 * The `metadata` section of the deployment template doesn't need a name because k8s automatically generates a name for each replica 
+* Any major change results in the deployment creating a new RS that uses new properties
+* The old RS is kept but the number of replicas is set to 0 (Useful for rollbacks)
+* Max number of pods = number of replicas + number specified in maxSurge
 
 ```bash
 # Scale deployment using kubectl 
@@ -421,11 +437,27 @@ kubectl scale deployment <name> --replicas=<number>
 
 # Can also be done via kubectl edit 
 kubectl edit deployment <name>
+
+# See rollout history of a deployment 
+kubectl rollout history <object> <name>
+
+# Check details about specific rollout revision
+kubectl rollout history <object> <name> --revision=<number>
+
+# Undo previous change
+kubectl rollout undo
+
+# Rollback to specific revision
+kubectl rollout undo deployment <name> --to-revision=<number>
 ```
 
 * deployment.spec
   * .replicas
-  * .strategy 
+  * .strategy.type
+    * .rollingUpdate (Updates pods one at a time to guarantee availability of the application)
+      * .maxUnavailable (Max number of pods that are upgraded at the same time)
+      * .maxSurge (Max number of pods that can be created over the desired number of pods, the value can be absolute number of a percentage of the desired pods)
+    * .recreate (All pods are killed and new Pods are created which results in temporary unavailability, useful if we can't run differnt versions of the application)
   * .selector 
   * .template
 
@@ -535,7 +567,7 @@ kubectl get cj
   * .schedule
   * .jobTemplate
     * .spec.template.spec.restartPolicy
-
+* `CronJobs` create `jobs` which in turn create `pods`
 ---
 
 #### Services:
@@ -558,12 +590,21 @@ kubectl get cj
 kubectl get ep <service-name>
 ```
 
+* service.spec
+  * [.ports](https://stackoverflow.com/a/61452441)
+    * **.port** (Port of the service itself)
+    * .targetPort (The port where the pod will forward traffic to)
+    * .nodePort (Port on the node where external traffic comes in)
+
 ---
 
 #### NetworkPolicies:
-* Allows the control of what traffic come in and leave the pod
+* Allows the control of what traffic come in [`ingress`] and leave [`egress`] the pod (Same functionality of a firewall)
 * Equivalent to the relation between a securityGroup and an EC2 instance in AWS
-* NetworkPolicies are Namespaced so we can configure a NetworkPolicy for each NS
+* NetworkPolicies are **Namespaced** so we can configure a NetworkPolicy for each NS
+* Network isolation can be configured to block traffic to pods by running pods in dedicated namespaces
+* NetworkPolicy depends on the support from the network provider (Not all providers offer support) and if there's no support then the policy applied won't have any effect
+* Connections are stateful (just like SG) so allowing one direction is enough
 * There are 2 kinds of pods when it comes to NetworkPolicies, a `non-isolated` pod and an `isolated` one, the non-isolated receives traffic from any source but when we apply a NetworkPolicy to the pod it becomes isolated
 * If the `podSelector` section in the NetworkPolicy yaml definition is empty then the policy will be applied to all pods in that namespace
 * If only `ingress` was specified in the yaml description then all egress traffic will be allowed by the policy
@@ -602,6 +643,19 @@ kubectl get networkpolicies
 kubectl describe networkpolicy <name>
 ```
 
+* NetworkPolicy.spec
+  * .podSelector.matchLabels
+  * .policyTypes
+    * - Ingress
+    * - Egress
+  * .ingress
+    * .from
+    * .ports
+  * .egress
+    * .to 
+    * .ports
+  
+
 ---
 
 #### Volumes:
@@ -633,10 +687,19 @@ kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
 
 ---
 
-#### Service discovery mechanisms:
+#### Ingress:
+* Gives `Services` externally reachable URLs
+* Allows traffic load balancing across services
+* Offers name based virtual hosting
+* Ingress controller must be setup to allow the use of ingress resources
+* Examples of ingress controllers are nginx, haproxy, traefik, kong, contour
+---
+
+#### Service Discovery mechanisms:
 1. Environment Variables
   * SVC address automatically injected in containers
   * Environment vars follow naming conventions based on SVC name
+  * Hyphens (-) gets replaced with underscores
 
 :o: Naming pattern for environment variables service discovery:
   - IP address: <SVC_NAME_ALL_CAPS>_SERVICE_HOST

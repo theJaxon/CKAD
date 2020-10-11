@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: database
+  name: database
+spec:
+  containers:
+  - image: nginx
+    name: database
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: web
+  name: web
+spec:
+  containers:
+  - image: alpine
+    name: web
+    command: ["sleep", "3000"]
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+
+---
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: db-np
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: database
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web
