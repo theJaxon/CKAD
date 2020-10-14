@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: busy
+  name: busy
+spec:
+  containers:
+    - command:
+      - sleep
+      - "3600"
+      image: busybox
+      name: busy-po
+      volumeMounts:
+      - mountPath: /tmp/jaxon1
+        name: jaxon
+
+    - name: nginx
+      image: nginx
+      volumeMounts:
+      - name: jaxon
+        mountPath: /tmp/jaxon2
+
+  volumes:
+    - name: jaxon
+      emptyDir: {}

@@ -170,6 +170,9 @@ kubectl create deployment --help | less
 # kubectl create deployment my-dep --image=busybox
 kubectl create deployment my-dep --image=busybox --dry-run=client -o yaml > deployment.yml
 
+# Create configMap
+kubectl create cm --help | less
+
 # Services are created with expose command
 kubectl expose <object> --port=<number> --targetPort=<number>
 
@@ -265,10 +268,24 @@ ss -tunap | grep <host-port>
 curl localhost:<host-port>
 ```
 
-* pod.spec.container
-  * .resources 
-  * .securityContext
-
+* pod.spec
+  * .containers
+    * .resources 
+    * .securityContext
+    * .envFrom
+      * .configMapRef.name
+    * .volumeMounts
+      * .mountPath (what you want to store from the container on the host)
+  * .volumes
+    * .emptyDir (creates temporary directory on the host)
+    * .hostPath (Mounts a directory located on the host to the container)
+    * ~~.gitrepo~~ # Deprecated
+    *  .azureDisk, .awsElasticBlockStore, .gcePresistentDisk # Cloud and all
+    * .cephfs # ceph object storage
+    * .nfs
+    * .persistentVolumeClaim
+      * .claimName (Name of the PVC)
+ 
 ---
 
 #### Namespaces:
@@ -280,8 +297,33 @@ kubectl create ns <name>
 
 
 #### ConfigMaps:
+- Special type of volumes
+- Just like volumes, they must be created before the pod that will use them
+- Used to separate dynamic data from static data in the pod
+- ConfigMaps can be mounted on the location where the application expects to find a configuration file
 - ConfigMaps can be included either as a `env` variable or as a `volume`
-- When they're included as a volume, for each key there is a corresponding file that contains the value that is created on the mountPath
+- When mounting a ConfigMap as a volume, in the mount point files will be created with the name of the Key and inside it exists the value
+- `Secrets` are just encoded ConfigMaps
+- ConfigMaps can be created from different sources
+  - Directories: uses multiple files in a directory 
+  - Files: puts the contents of a file in ConfigMap
+  - Literal Values: provide variables and command arguments that are to be used by a pod
+
+```bash
+# Command line ConfigMap specification 
+kubectl create cm --from-literal='key=value' --from-literal='key2=value2'
+
+# From a file 
+kubectl create cm --from-file=file_name
+```
+
+file_name  ex:
+```ini
+VAR1=abc
+VAR2=efg
+```
+
+.data.variables
 
 ---
 
@@ -678,12 +720,33 @@ kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
 ---
 
 #### PVs and PVCs:
-* Persistent data storage 
+* Persistent Volume allows Pods to connect to external data storage 
 * Independent of Pod's Lifetime
 * PVC access modes are:
   * readWriteOnce (Allow volumes for RW operations only by a single **node** at a time)
   * readOnlyMany
   * readWriteMany
+* ConfigMaps are specific volume objects that connect to config files and variables
+* Secrets are like configMaps but the data is encoded
+* PVC will bind to a PV according to the availability of the requested `accessModes` and `capacity`
+
+* pv.spec
+  * .capacity
+    * .storage 
+  * **.accessModes**
+    * .ReadWriteOnce
+    * .ReadWriteMany 
+    * .ReadOnlyMany
+  * .<type> [.hostPath, .nfs, .cephfs]
+
+
+* pvc.spec
+  * **.accessModes**
+  * .resources
+    * .requests.storage
+
+* **`AccessModes`** between PV and PVC must match so that the state becomes `bound`
+
 
 ---
 
@@ -693,6 +756,18 @@ kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
 * Offers name based virtual hosting
 * Ingress controller must be setup to allow the use of ingress resources
 * Examples of ingress controllers are nginx, haproxy, traefik, kong, contour
+* We commonly configure a `default` backend for the ingress controller so that the traffic that doesn't match any `path` gets redirected to it
+* ingress.spec
+  * .rules
+    * .host (optional and if not supplied then the rule applies to all HTTP traffic)
+    * .http.paths (List of paths each having its own backend)
+      * .path
+        * .backend (Service name + Service Port)
+          * .serviceName
+          * .servicePort
+      * .backend
+      * .path
+      * .pathType
 ---
 
 #### Service Discovery mechanisms:
