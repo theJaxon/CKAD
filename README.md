@@ -274,6 +274,10 @@ curl localhost:<host-port>
     * .securityContext
     * .envFrom
       * .configMapRef.name
+      * .secretKeyRef
+        * .name
+        * .key
+
     * .volumeMounts
       * .mountPath (what you want to store from the container on the host)
   * .volumes
@@ -285,6 +289,12 @@ curl localhost:<host-port>
     * .nfs
     * .persistentVolumeClaim
       * .claimName (Name of the PVC)
+    * configMap
+      * .name
+      * .items
+        * key 
+        * path
+    * .secret.secretName
  
 ---
 
@@ -296,7 +306,7 @@ kubectl create ns <name>
 ---
 
 
-#### ConfigMaps:
+#### ConfigMaps and [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/):
 - Special type of volumes
 - Just like volumes, they must be created before the pod that will use them
 - Used to separate dynamic data from static data in the pod
@@ -304,6 +314,15 @@ kubectl create ns <name>
 - ConfigMaps can be included either as a `env` variable or as a `volume`
 - When mounting a ConfigMap as a volume, in the mount point files will be created with the name of the Key and inside it exists the value
 - `Secrets` are just encoded ConfigMaps
+- Secrets allow stroing sensitive data as passwords, auth tokens and SSH keys
+- Secrets are used so that the data doesn't have to be put in a pod this reducing risk of accidential exposure
+- There are 3 types of secrets:
+  - docker-registry which is used for connecting to the docker registry :open_mouth:
+  - TLS which creates a TLS secret
+  - **generic which creates a secret from a local file, a directory or a literal value**
+- Secrets can be used by pods in 2 ways:
+  - as environemnt variables
+  - Mounted as volumes
 - ConfigMaps can be created from different sources
   - Directories: uses multiple files in a directory 
   - Files: puts the contents of a file in ConfigMap
@@ -314,7 +333,22 @@ kubectl create ns <name>
 kubectl create cm --from-literal='key=value' --from-literal='key2=value2'
 
 # From a file 
-kubectl create cm --from-file=file_name
+kubectl create cm --from-file <file_name>
+
+# Create a secret from file 
+kubectl create secret <type> <name> --from-file=/absolute/path
+
+# Create a secret from literal type=generic
+kubectl create secret <type> <name> --from-literal='key=encoded_value'
+```
+
+Secrets can also be created from YAML files but the values need to be `base64` encrypted
+
+```bash
+echo <string> | base64 # encode the string
+
+echo <base-64-encrypted-string> | base64 -d # decode
+
 ```
 
 file_name  ex:

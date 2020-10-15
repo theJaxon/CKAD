@@ -1,0 +1,24 @@
+# kubectl create cm nginx-cm --from-file nginx-conf.conf
+
+---
+
+apiVersion: v1 
+kind: Pod 
+metadata:
+  name: nginx-po 
+spec:
+  volumes:
+  - name: cm_vol
+    configMap:
+      name: nginx-cm 
+      items:
+      - key: nginx-conf.conf 
+        path: default.conf 
+  
+  containers:
+  - image: nginx 
+    name: nginx 
+    volumeMounts:
+    - name: cm_vol 
+      mountPath: /etc/nginx/conf.d
+  
