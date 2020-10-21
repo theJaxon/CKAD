@@ -96,6 +96,8 @@ alias k='kubectl'
 k completion -h # In case you forgot the source command listed above
 ```
 
+Also check the [cheatsheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/) from the documentation for easier access 
+
 2. [Delete](https://stackoverflow.com/a/33510531) all pods in a NS
 ```bash
 kubectl delete --all po --namespace=<name>
@@ -178,6 +180,12 @@ kubectl expose <object> --port=<number> --targetPort=<number>
 
 # Pods
 kubectl run <name> --image=<name>
+
+# Pod with requests and limits defined
+kubectl run <name> --image=<name> --requests='cpu=100m,memory=256Mi' --limits='cpu=200m,memory=512Mi'
+
+# Create a pod and expose it in the same command
+kubectl run <name> --image=<name> --port=<number> --expose
 ```
 
 7. Use kubectl explain to find the `apiVersion`
@@ -220,7 +228,10 @@ kubectl get <object>
 # Troubleshooting commands
 kubectl describe <object> # Used to also view resource requests and limits
 
-kubectl logs <object>
+kubectl logs <pod-name>
+
+# Get logs of the previous pod instance (if one existed)
+kubectl logs <pod-name> -p
 
 # Follow the logs using -f 
 kubectl logs <pod-name> -f
@@ -234,8 +245,8 @@ kubectl get po -A
 # Updating existing object definition
 kubectl apply -f file_name.yml
 kubectl edit <object> <name>
-kubectl exec <pod-name> -- command-here # ls /etc/conf for example
-kubectl exec --tty --stdin <pod-name> -c <container-name> -- /bin/bash # Getting into multi-containter pod
+kubectl exec -it <pod-name> -- command-here # ls /etc/conf for example
+kubectl exec --it <pod-name> -c <container-name> -- /bin/bash # Getting into multi-containter pod
 
 ```
 
@@ -328,12 +339,18 @@ kubectl create ns <name>
   - Files: puts the contents of a file in ConfigMap
   - Literal Values: provide variables and command arguments that are to be used by a pod
 
+* The behavior of --from-file is that if no key=file_name was specified then the file_name itself is set as the key name.
+* if a key was passed then it overrides the file_name that was going to be set by default as the key
+
 ```bash
 # Command line ConfigMap specification 
 kubectl create cm --from-literal='key=value' --from-literal='key2=value2'
 
 # From a file 
 kubectl create cm --from-file <file_name>
+
+# From a file but the key is set to the desired name we want
+kubectl create cm --from-file=desired_name=<file_name>
 
 # Create a secret from file 
 kubectl create secret <type> <name> --from-file=/absolute/path
@@ -386,6 +403,27 @@ kubectl explain pod.spec.securityContext
 
 ---
 
+#### Resource Quota:
+- Used to limit resources in a `Namespace`
+
+```bash
+kubectl create quota <name> --hard=<comma separated list of hardware specs>
+
+kubectl create quota my-quota --hard=cpu=1,memory=1G,pods=2
+```
+
+* ResourceQuota
+  * .metadata.**namespace**
+  * .spec
+    * .hard
+      * .pods # Max number of pod on this ns
+      * .requests.cpu
+      * .requests.memory 
+      * .limits.cpu
+      * .limits.memory
+
+---
+
 #### Secrets:
 * Store sensitive data in a secure fashion (using base64 encryption lol)
 
@@ -433,7 +471,18 @@ Changes the output of the main container (for example the output is changed to f
 - Allows customizing how K8s determines container status
 - Liveness probe indicates whether the container is running properly and decides whether the cluster will automatically stop or restart the container
   - It just does health checks
-- Readiness probe indicates whether the container is ready to receive requests 
+- Readiness probe indicates whether the container is ready to receive requests (It makes sure that the pod is not published as available until it's able to access it)
+
+Types of probes:
+- exec: a command that gets executed and returns a zero exit value
+- httpGet: an HTTP request that returns a response code between 200 and 399
+- tcpSocket: connectivity to a TCP socket (available port) is successfull
+
+* pod.spec.containers.readinessProbe
+  * .periodSeconds
+  * .initialDelaySeconds
+  * .exec
+    * .command
 
 ---
 
@@ -487,9 +536,13 @@ kubectl label <object> <name> key=value
 
 # Remove label
 kubectl label po <name> key-
+
+# Add anootation 
+kubectl annotate <object> <name> key=value
 ```
 
 * The `selector` option is used to search for items that have a specific label set `kubectl get po --selector='key=value'`
+* The previous command is also equivalent to using `kubectl get po -l key=value` 
 * Annotations provide metadata ex: licences, maintainer etc
 ---
 
@@ -588,6 +641,9 @@ kubectl get hpa
 ```bash
 kubectl set image deployment/<deployment-name> <container name>=<image name> --record # --record flag recrods info about the update so that it can be rolled back later
 
+# Scale a deployment 
+kubectl scale deployment <name> --replicas <number>
+
 kubectl rollout status deployment/<name>
 
 # Check deployment versions 
@@ -595,6 +651,12 @@ kubectl rollout history deployment/<name>
 
 # Get more info about a specific revision
 kubectl rollout history deployment/<name> --revision=<number>
+
+# Pause the rollout of a deployment
+kubectl rollout pause deployment <name>
+
+# Resume the rollout of a deployment
+kubectl rollout resume deployment <name>
 
 # Rollback
 kubectl rollout undo deployment/<name>
@@ -636,7 +698,9 @@ kubectl get cj
 ```
 
 * job.Spec
-  * .completions
+  * .activeDeadlineSeconds # Durtation after which the job will be terminated
+  * .completions # number of times the job should be completed
+  * .parallelism # max number of pods that should run at any given time 
   * .template 
 
 * cronjob.spec
