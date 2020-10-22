@@ -745,6 +745,13 @@ kubectl run nginx-po --image=nginx
 kubectl expose pod nginx-po --port=8888 --target-port=80
 ```
 
+Running `kubectl describe svc nginx` returns 
+![command_result](https://github.com/theJaxon/CKAD/blob/master/etc/svc/SVC.jpg)
+
+Here any traffic from `IP:Port` gets redirected to `EP:TargetPort` 
+
+
+
 ---
 
 #### NetworkPolicies:
