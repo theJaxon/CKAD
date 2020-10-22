@@ -736,6 +736,15 @@ kubectl get ep <service-name>
     * .targetPort (The port where the pod will forward traffic to)
     * .nodePort (Port on the node where external traffic comes in)
 
+##### Example:
+```bash
+# 1- Create a pod
+kubectl run nginx-po --image=nginx
+
+# 2- Expose the pod (Create a SVC)
+kubectl expose pod nginx-po --port=8888 --target-port=80
+```
+
 ---
 
 #### NetworkPolicies:
