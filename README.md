@@ -90,6 +90,9 @@ source <(kubectl completion bash)
 # To do it persistently store it in .bashrc
 echo "source <(kubectl completion bash)" >> ~/.bashrc
 
+# Handking k autocompletion https://github.com/kubernetes/kubectl/issues/120#issuecomment-344137671
+source <(kubectl completion bash | sed 's/kubectl/k/g') 
+
 # alias kubectl to k (from https://github.com/krzko/awesome-cka)
 alias k='kubectl'
 
@@ -101,6 +104,9 @@ Also check the [cheatsheet](https://kubernetes.io/docs/reference/kubectl/cheatsh
 2. [Delete](https://stackoverflow.com/a/33510531) all pods in a NS
 ```bash
 kubectl delete --all po --namespace=<name>
+
+# Don't wait for K8s to gracefully delete the object, force delete with grace period zero 
+k delete po --all --grace-period=0 --force
 ```
 
 3. kubectl 
@@ -109,6 +115,7 @@ kubectl <verb> --help | less
 
 kubectl | less
 
+# Get a list of objects shortnames
 kubectl api-resources
 
 kubectl get po -Ao wide
@@ -138,6 +145,9 @@ curl http://localhost:<number>/version
 # Get list of pods in a specific NS
 curl http://localhost:<number>/api/v1/namespaces/<Namespace>/pods
 
+
+# Change context and NS 
+k config set-context <context> -ns 
 ``` 
 
 4. Watch command (2 ways)
@@ -228,6 +238,9 @@ kubectl get <object>
 # Troubleshooting commands
 kubectl describe <object> # Used to also view resource requests and limits
 
+# Use -C to render lines before and after the matched grep expression 
+k describe <object> | grep <term> -C 5
+
 kubectl logs <pod-name>
 
 # Get logs of the previous pod instance (if one existed)
@@ -238,6 +251,10 @@ kubectl logs <pod-name> -f
 
 # When having more than 1 container in a pod use the -c flag 
 kubectl logs <pod> -c <container>
+
+# Check events of specific object
+# Found in events in stackdriver docs 
+kubectl get events --field-selector involvedObject.name=<object-name>
 
 # Get All pods in the cluster
 kubectl get po -A
@@ -279,16 +296,26 @@ ss -tunap | grep <host-port>
 curl localhost:<host-port>
 ```
 
+#### :clock1: Pod Lifecycle (Status):
+
+| Status            | Meaning                                                                                                                    |
+|-------------------|----------------------------------------------------------------------------------------------------------------------------|
+| Pending           | When a pod is first created it's in a pending state which means that the scheduler is figuring out where to place the pod  |
+| containerCreating | Images are being pulled so that the container starts                                                                       |
+| Running           | The pod is started, it keeps running till it does its job and then terminates                                              |
+
 * pod.spec
   * .containers
     * .resources 
     * .securityContext
-    * .envFrom
+    * .env # Load a single env variable
+      * .name
+      * .valueFrom
+        * .configMapKeyRef
+        * .secretKeyRef
+    * .envFrom # Takes an array
       * .configMapRef.name
-      * .secretKeyRef
-        * .name
-        * .key
-
+      * .secretRef.name
     * .volumeMounts
       * .mountPath (what you want to store from the container on the host)
   * .volumes
@@ -306,7 +333,21 @@ curl localhost:<host-port>
         * key 
         * path
     * .secret.secretName
- 
+
+##### ENV value Types:
+1. Plain Key Value
+2. ConfigMap
+3. Secrets
+
+```bash
+# Create a pod with an environment variable
+# 1- Plain key value type 
+k run <pod-name> --image=busybox --o yaml --dry-run=client --env=EXAM=CKAD --command env
+```
+
+* When a ConfigMap is created `--from-env-file` the file must adhere to the format `key=value`
+* `--from-file`
+
 ---
 
 #### Namespaces:
@@ -314,6 +355,16 @@ curl localhost:<host-port>
 # Create ns
 kubectl create ns <name>
 ```
+
+##### :gem: Namespace List:
+
+|       Name      |                                                             Description                                                             |
+|:---------------:|:-----------------------------------------------------------------------------------------------------------------------------------:|
+|     default     |                                      Used by default when no namespace for objects is specified                                     |
+|   kube-system   |                                                 NS for objects created by K8s system                                                |
+|   kube-public   | - Created automatically and is readable by all users. - Contains info like CA that helps kubeadm join and authenticate worker nodes |
+| kube-node-lease |                                    Contains lease objects that are used to determine node health                                    |
+
 ---
 
 
@@ -339,7 +390,7 @@ kubectl create ns <name>
   - Files: puts the contents of a file in ConfigMap
   - Literal Values: provide variables and command arguments that are to be used by a pod
 
-* The behavior of --from-file is that if no key=file_name was specified then the file_name itself is set as the key name.
+* The behavior of `--from-file` is that if no `key=<file-name` was specified then the file-name itself is set as the key name.
 * if a key was passed then it overrides the file_name that was going to be set by default as the key
 
 ```bash
@@ -381,6 +432,7 @@ VAR2=efg
 #### SecurityContext:
 * Define privilege and access control settings for **pods** and **containers**
 * They're part of the Pod specification
+* They can be specified either at pod level or at container level (although `capabilites` is only available at container level)
 * Running as privileged or unprivileged user
   * Without a securityContext, the user running the commands in the container inside the pod will be `root` by default
 * SELinux where security labels can be applied OR AppArmor
@@ -389,7 +441,19 @@ VAR2=efg
 
 ```bash
 kubectl explain pod.spec.securityContext
+
+k explain pod.spec.containers.securityContext
 ```
+
+* runAsUser # Specifies the user of the running processes in the containers
+* runAsGroup # Specifies the primary group of all processes within the containers 
+* fsGroup # Applies settings to volumes that support ownership management, these volumes are modified to be owned by the GID specified in the fsGroup
+
+* pod.spec.containers.securityContext
+  * .runAsUser
+  * .runAsGroup
+  * .fsGroup
+  * .capabilities
 
 ---
 
@@ -425,16 +489,30 @@ kubectl create quota my-quota --hard=cpu=1,memory=1G,pods=2
 ---
 
 #### Secrets:
-* Store sensitive data in a secure fashion (using base64 encryption lol)
+* Store sensitive data in a secure fashion (using base64 encoding lol)
+
+```bash
+k create secret generic <name> --from-literal=key=value
+```
 
 ---
 
 #### ServiceAccount:
+* There are 2 types of accounts in K8s, a `user` account and a `service` account.
+* User accounts are used by individuals (admin, developer, etc) while service accounts are used by the pods (Prometheus uses a service account to get performance metrics using the API, Jenkins also uses a service account to deploy apps on the cluster)
+* A service account provides an identity for processes that run in a Pod
 * Allows the container to interact with kubernetes API
 * Image pull secrets authenticate with private container registeries
+* When a `sa` is created it also generates a token which is stored as a secret
 
 ```bash
 kubectl create serviceaccount <name>
+
+# Shorter version
+k create sa <name>
+
+# Use the created SA with a pod 
+kubectl run <pod-name> --image=<name> --serviceaccounts=<SA-name>
 ```
 
 just specify the `serviceAccountName` in the pod `spec` definition
@@ -484,6 +562,29 @@ Types of probes:
   * .exec
     * .command
 
+readinessProbe:
+1. httpGet
+```yml
+readinessProbe:
+  httpGet:
+    port: <number>
+    path: </path/here>
+```
+2. exec
+```yml
+readinessProbe:
+  exec:
+    command:
+    - cat
+    - </path/here>
+```
+3. tcpSocket
+```yml
+readinessProbe:
+  tcpSocket:
+    port: <number>
+```
+
 ---
 
 ##### Metrics server installation:
@@ -504,6 +605,8 @@ in the deployment section
 ---
 
 #### Monitoring apps:
+
+* `Metric server` comes pre-installed so no worries, just know the commands: 
 
 ```bash
 kubectl top po
@@ -739,10 +842,10 @@ kubectl get ep <service-name>
 ##### Example:
 ```bash
 # 1- Create a pod
-kubectl run nginx-po --image=nginx
+kubectl run nginx --image=nginx
 
 # 2- Expose the pod (Create a SVC)
-kubectl expose pod nginx-po --port=8888 --target-port=80
+kubectl expose pod nginx --port=8888 --target-port=80
 ```
 
 Running `kubectl describe svc nginx` returns 
@@ -750,11 +853,9 @@ Running `kubectl describe svc nginx` returns
 
 Here any traffic from `IP:Port` gets redirected to `EP:TargetPort` 
 
-
-
 ---
 
-#### NetworkPolicies:
+#### :small_orange_diamond: NetworkPolicies:
 * Allows the control of what traffic come in [`ingress`] and leave [`egress`] the pod (Same functionality of a firewall)
 * Equivalent to the relation between a securityGroup and an EC2 instance in AWS
 * NetworkPolicies are **Namespaced** so we can configure a NetworkPolicy for each NS
@@ -796,6 +897,9 @@ spec:
 ```bash
 kubectl get networkpolicies
 
+# Use netpol for short 
+kubectl get netpol
+
 kubectl describe networkpolicy <name>
 ```
 
@@ -828,8 +932,17 @@ kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
 [Volume Types](https://kubernetes.io/docs/concepts/storage/volumes/) List:
 * configMap
 * emptyDir
+* hostPath
 * persistentVolumeClaim
 * secret
+
+1. hostPath
+```yml
+volumes:
+- hostPath:
+    path: </path/on/host/os>
+    type: Directory
+```
 
 ---
 
@@ -861,6 +974,26 @@ kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
 
 * **`AccessModes`** between PV and PVC must match so that the state becomes `bound`
 
+PV example:
+```yml
+spec:
+  accessModes:
+  - ReadWriteOnce 
+  capacity:
+    storage: 1Gi 
+  hostPath: 
+    path: /tmp/data
+```
+
+PVC example:
+```yml
+spec:
+  accessModes:
+  - ReadWriteOnce 
+  resources:
+    requests:
+      storage: 500Mi
+```
 
 ---
 
@@ -1128,3 +1261,6 @@ spec:
 
 ---
 
+Qs
+1. Create configMap named `ckad-cm` with `EXAM=CKAD` and add it one time as a env variable in a pod and another time as a volume.
+2- 
