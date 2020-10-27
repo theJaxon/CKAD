@@ -4,7 +4,6 @@ Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
 ---
 
 ### Objectives:
-* The hashtag provided means use the keyword to search in the documentation at [k8s website](https://kubernetes.io/docs/home/)
 
 <details>
 <summary>1- Pod Design <b>20%</b></summary>
@@ -95,6 +94,10 @@ source <(kubectl completion bash | sed 's/kubectl/k/g')
 
 # alias kubectl to k (from https://github.com/krzko/awesome-cka)
 alias k='kubectl'
+alias kc='kubectl create'
+alias kg="kubectl get"
+alias kr="kubectl run"
+alias kx="kubectl explain"
 
 k completion -h # In case you forgot the source command listed above
 ```
@@ -146,15 +149,18 @@ curl http://localhost:<number>/version
 curl http://localhost:<number>/api/v1/namespaces/<Namespace>/pods
 
 
-# Change context and NS 
-k config set-context <context> -ns 
+# Change context 
+k config use-context <context> 
+
+# Switch to a different NS in a context 
+k config set-context <context> --namespace=<namespace>
 ``` 
 
 4. Watch command (2 ways)
 * `kubectl get` command supports the `-w` option.
 * watch -n 1 `kubectl get po` specifies a watch command that gets updated each 1 second  
 
-5. [Delete a block](https://vi.stackexchange.com/questions/1915/how-do-i-delete-a-large-block-of-text-without-counting-the-lines) from the YAML file 
+5. [Delete a block](https://vi.stackexchange.com/questions/1915/how-do-i-delete-a-large-block-of-text-without-counting-the-lines) from the YAML file using Vim
 ```bash
 # Approach 1 
 m then a # Start section 
@@ -191,6 +197,9 @@ kubectl expose <object> --port=<number> --targetPort=<number>
 # Pods
 kubectl run <name> --image=<name>
 
+# Run pod with specific service account 
+k run <name> --image=<name> --serviceaccount=<sa-name>
+
 # Pod with requests and limits defined
 kubectl run <name> --image=<name> --requests='cpu=100m,memory=256Mi' --limits='cpu=200m,memory=512Mi'
 
@@ -213,6 +222,11 @@ kubectl api-versions | less # /<term from previous command>
 ### :file_folder: Important dirs:
 * Kubectl 
   * ~/.kube/config # kubectl config view
+* The controller plane is generated using files at `/etc/kubernetes/manifests/` which contains 
+  * etcd.yaml
+  * kube-apiserver.yaml
+  * kube-controller-manager.yaml
+  * kube-scheduler.yaml
 
 ### JSONPATH commands:
 ```bash
@@ -282,6 +296,7 @@ kubectl exec --it <pod-name> -c <container-name> -- /bin/bash # Getting into mul
   * users (Containers have their own users that don't exist on the host OS)
 * They also use `CGroups` which offers resource allocation and limition 
 
+The containers section helps identifying whether it's an `init Container` or a normal one, `imagePullSecrets` can be used toe download from private registeries.
 ---
 
 #### Pods:
@@ -334,10 +349,30 @@ curl localhost:<host-port>
         * path
     * .secret.secretName
 
+```bash
+# Init containers
+k explain pod.spec.initContainers
+```
+
+* The `Scheduling` fields helps determine where the pod will be scheduled
+  * **nodeSelector** schedules on a target node using provided labels
+  * **nodeName** schedules on a target node using just the node name
+  * `Tolerations` allow the pod to be scheduled on a node with a specific `taint` (The pod becomes tolerant to that node)
+  * `Affinity` similar to `nodeSelector` or `nodeName` but with the capability of having conditionals to what nodes the pod can be scheduled on
+    * `NodeAffinity` similar to `nodeSelector` where we schedule using a label that matches
+    * `podAffinity` schedules the pod on a node where some other specific pods are already running
+    * `PodAntiAffinity` prevents the scheduling of a pod on a node containing some other specific pod
+  * [`priorityClassName`](https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#example-priorityclass) specifies pod priority where if the pod can't be scheduled then the scheduler evict lower prioroty pods to allow the scheduling of this pod to happen
+```bash
+k create priorityclass --help
+```
+* `hostNetwork` controls whether the pod may use the node network NS (is set to False by default)
+
+
 ##### ENV value Types:
-1. Plain Key Value
-2. ConfigMap
-3. Secrets
+* Plain Key Value
+* ConfigMap
+* Secrets
 
 ```bash
 # Create a pod with an environment variable
@@ -347,6 +382,18 @@ k run <pod-name> --image=busybox --o yaml --dry-run=client --env=EXAM=CKAD --com
 
 * When a ConfigMap is created `--from-env-file` the file must adhere to the format `key=value`
 * `--from-file`
+
+Using single configMap env variable:
+
+```yml
+env:
+- name:
+  valueFrom:
+    configMapKeyRef:
+      name: <configMap-object-name>
+      key: <key-from-cm>
+```
+
 
 ---
 
@@ -452,8 +499,19 @@ k explain pod.spec.containers.securityContext
 * pod.spec.containers.securityContext
   * .runAsUser
   * .runAsGroup
+  * .runAsNonRoot
   * .fsGroup
   * .capabilities
+
+Capabilities example:
+```yml
+containers:
+- name: nginx
+  image: nginx
+  securityContext:
+    capabilities:
+      add: ["SYS_TIME"]
+```
 
 ---
 
@@ -531,7 +589,6 @@ The sidecar container enhances the functionality of the main container.
 use cases:
   * logging agents that collect and ship logs to a central aggregation system
   * File sync services and watchers - ex: [Git sync](https://github.com/kubernetes/git-sync) to a web server container
-
 2. Ambassador pod
 It receives network traffic then pass it to the main container (ex: ambassador listens on a custom port then forwards traffic to the main hard-coded port)
 use cases - commonly used with DBs
@@ -617,10 +674,21 @@ kubectl top po <name>
 kubectl top nodes
 ```
 
+---
+
+#### Debugging:
+1. Check the status of `kubelet.service` using `systemctl status kubelet`
+2. Check the logs of the `kubelet` service using `journalctl -u kubelet` 
+
+---
+
 #### Labels, Selectors and Annotations:
 ```bash
 # Get pods based on specific label
-kubectl get po -l key=value
+kubectl get po -l key=value 
+
+# The previous command is eqivalent to 
+k get po --selector k=v
 
 # Get pods based on multiple labels 
 kubectl get po -l key=value,key=value
@@ -930,9 +998,9 @@ kubectl get po <name> -o jsonpath='{.spec.containers[*].name}'
 ```
 
 [Volume Types](https://kubernetes.io/docs/concepts/storage/volumes/) List:
+* hostPath
 * configMap
 * emptyDir
-* hostPath
 * persistentVolumeClaim
 * secret
 
@@ -942,6 +1010,14 @@ volumes:
 - hostPath:
     path: </path/on/host/os>
     type: Directory
+```
+
+5. secret 
+```yml
+volumes:
+- name: mysecret 
+  secret:
+    secretName: <secret-object-name>
 ```
 
 ---
