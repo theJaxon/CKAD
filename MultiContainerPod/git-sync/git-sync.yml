@@ -10,6 +10,7 @@ spec:
   containers:
   - name: nginx 
     image: nginx 
+    workingDir: /tmp
     volumeMounts:
     - name: tmp-v 
       mountPath: /tmp

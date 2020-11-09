@@ -236,6 +236,9 @@ kubectl get pods -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
 # Get container names inside each pod
 kubectl get po -A -o=jsonpath='{ range .items[*]}{"\n"}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{", "}{end}{end}'
 
+# Get Pod IP a 
+k get po <name> -o jsonpath='{.status.podIP}'
+
 ```
 
 
@@ -248,6 +251,9 @@ kubectl cluster-info
 kubectl api-resources 
 
 kubectl get <object>
+
+# Copy a file to a pod 
+k cp /file/path/file_name <pod-name>:/path/inside/pod
 
 # Troubleshooting commands
 kubectl describe <object> # Used to also view resource requests and limits
@@ -373,6 +379,7 @@ k create priorityclass --help
 * Plain Key Value
 * ConfigMap
 * Secrets
+* fieldRef
 
 ```bash
 # Create a pod with an environment variable
@@ -393,7 +400,44 @@ env:
       name: <configMap-object-name>
       key: <key-from-cm>
 ```
+Using single Secret env variable:
+```yml
+env:
+- name: <name>
+  valueFrom:
+    secretKeyRef:
+      name: <secret-name>
+      key: <key-name>
+```
 
+* Note that if CM or Secret weren't found and they're being referenced then the object creation will fail, to mitigate that make them optional.
+Option CM example:
+```yml
+env:
+- name: <name>
+  valueFrom:
+    configMapKeyRef:
+      name: <cm-name>
+      key: <key-name>
+      optional: True 
+```
+
+FieldRef example:
+```yml
+env: 
+- name: POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
+- name: NS 
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.namespace
+- name: IP_A
+  valueFrom:
+    fieldRef:
+      fieldPath: status.podIP
+```
 
 ---
 
@@ -749,6 +793,27 @@ kubectl rollout undo
 
 # Rollback to specific revision
 kubectl rollout undo deployment <name> --to-revision=<number>
+
+# Create a deployment then set an environment variable (There's no --env option for deployment so it's a 2 step process)
+k create deploy <name> --image=<name>
+k set env deploy <name> --env=K=V --env=K=V
+
+# Set from a configMap or from a secret 
+k set env deploy/<name> --from=configmap/<cm-name> --keys="key1,key2"
+
+k set env deploy/<name> --from=secret/<secret-name> --keys="key1,key2"
+
+# Both the previous approaches load single keys specified in the cm or secret, to load the whole cm or secret just use --from=<name>
+
+# Load all configMap data
+k set env deploy/<name> --from=configmap/<name>
+
+# Load all secrets data 
+k set env deploy/<name> --from=secret/<name>
+
+# Setting resource requests and limits for deployment
+k set resources deploy/nginx --requests=memory=256Mi,cpu=500m --limits=memory=500Mi,cpu=750m
+
 ```
 
 * deployment.spec
@@ -760,6 +825,8 @@ kubectl rollout undo deployment <name> --to-revision=<number>
     * .recreate (All pods are killed and new Pods are created which results in temporary unavailability, useful if we can't run differnt versions of the application)
   * .selector 
   * .template
+
+
 
 ---
 
@@ -811,6 +878,9 @@ kubectl get hpa
 
 ```bash
 kubectl set image deployment/<deployment-name> <container name>=<image name> --record # --record flag recrods info about the update so that it can be rolled back later
+
+# If the --record was forgotten then manually annotate the deployment 
+k annotate deploy/<name> kubernetes.io/change-cause="Reason for rollout"
 
 # Scale a deployment 
 kubectl scale deployment <name> --replicas <number>
