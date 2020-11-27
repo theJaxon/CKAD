@@ -234,13 +234,18 @@ kubectl api-versions | less # /<term from previous command>
 kubectl get pods -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
 
 # Get container names inside each pod
-kubectl get po -A -o=jsonpath='{ range .items[*]}{"\n"}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{", "}{end}{end}'
+k get po -l key=value -o jsonpath='{.items[0].status.containerStatuses[*].name}'
 
 # Get Pod IP a 
 k get po <name> -o jsonpath='{.status.podIP}'
 
-```
+# Get available Memory on the nodes
+k get nodes -o jsonpath='{.items[].status.allocatable.memory}'
 
+# Get available CPUs
+k get nodes -o jsonpath='{.items.status.allocatable.cpus}'
+
+```
 
 #### :gem: Common commands:
 
@@ -447,6 +452,18 @@ env:
 kubectl create ns <name>
 ```
 
+#### Contexts:
+```bash
+# Change the default namespace in ~/.kube/config 
+k config set-context --current --namespace <name>
+
+# Verify using 
+k config view
+
+# Revert back to default ns 
+k config set-context --current --namespace=
+```
+
 ##### :gem: Namespace List:
 
 |       Name      |                                                             Description                                                             |
@@ -567,12 +584,19 @@ containers:
   - **250m** means a **quarter** of a cpu core 
   - **500m** means **half** of a cpu core and so on
 
+```bash
+# Set requests and limits for a running nginx pod
+k set resources po/nginx --requests=memory=50Mi,cpu=200m --limits=memory=256Mi,cpu=750m
+```
+
 ---
 
 #### Resource Quota:
 - Used to limit resources in a `Namespace`
 
 ```bash
+k create quota --help
+
 kubectl create quota <name> --hard=<comma separated list of hardware specs>
 
 kubectl create quota my-quota --hard=cpu=1,memory=1G,pods=2
@@ -640,6 +664,8 @@ use cases - commonly used with DBs
 3. Adapter pod
 Changes the output of the main container (for example the output is changed to fit some sort of a monitoring tool that will receive it like prometheus or logstash)
 
+* In Multi container pod, the same namespace can be shared between containers using **`shareProcessNamespace: True`** in pod spec, this can be useful in certain use cases where we need access for inter process communication or to fetch metrics about app processes in the container.
+
 ---
 
 #### Init Containers:
@@ -651,17 +677,26 @@ Changes the output of the main container (for example the output is changed to f
 - Liveness probe indicates whether the container is running properly and decides whether the cluster will automatically stop or restart the container
   - It just does health checks
 - Readiness probe indicates whether the container is ready to receive requests (It makes sure that the pod is not published as available until it's able to access it)
+- If the Readiness probe fails the pod doesn't get replaced, the pod will just stop receiving traffic and that's all.
+- If Liveness probe fails then the pod is restarted
 
 Types of probes:
 - exec: a command that gets executed and returns a zero exit value
 - httpGet: an HTTP request that returns a response code between 200 and 399
 - tcpSocket: connectivity to a TCP socket (available port) is successfull
 
+```
 * pod.spec.containers.readinessProbe
   * .periodSeconds
   * .initialDelaySeconds
   * .exec
     * .command
+```
+
+```
+* pod.spec.containers.livenessProbe
+  * .failureThreshold # Minimum consecutive failures for the probe to be considered failed.
+```
 
 readinessProbe:
 1. httpGet
@@ -875,6 +910,7 @@ kubectl get hpa
 * Rollout is a process of updating and replacing replicas with replicas matching a new `Deployment` template
 * Deployments create RS by defaults
 * Rolling updates provide a way to update a deployment to a new container version by gradually updating replicas thus no downtime is introduced
+* Rollouts are only triggered when there's a change in the **pod spec** , if there's a change for number of replicas for example, this doesn't trigger a rollout.
 
 ```bash
 kubectl set image deployment/<deployment-name> <container name>=<image name> --record # --record flag recrods info about the update so that it can be rolled back later
@@ -984,12 +1020,16 @@ kubectl run nginx --image=nginx
 
 # 2- Expose the pod (Create a SVC)
 kubectl expose pod nginx --port=8888 --target-port=80
+
+# Create a headless service 
+k create svc clusterip <name> --clusterip="None" --dry-run=client -o yaml
 ```
 
 Running `kubectl describe svc nginx` returns 
 ![command_result](https://github.com/theJaxon/CKAD/blob/master/etc/svc/SVC.jpg)
 
 Here any traffic from `IP:Port` gets redirected to `EP:TargetPort` 
+
 
 ---
 
