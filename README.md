@@ -307,7 +307,8 @@ kubectl exec --it <pod-name> -c <container-name> -- /bin/bash # Getting into mul
   * users (Containers have their own users that don't exist on the host OS)
 * They also use `CGroups` which offers resource allocation and limition 
 
-The containers section helps identifying whether it's an `init Container` or a normal one, `imagePullSecrets` can be used toe download from private registeries.
+The containers section helps identifying whether it's an `init Container` or a normal one, `imagePullSecrets` can be used to download from private registeries.
+
 ---
 
 #### Pods:
