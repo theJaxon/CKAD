@@ -1,5 +1,5 @@
 # CKAD
-Preparation for the Certified Kubernetes Application Developer V1.19 [CNCF] exam
+Preparation for the Certified Kubernetes Application Developer V1.29 [CNCF] exam
 
 ---
 
